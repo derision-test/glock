@@ -11,6 +11,8 @@ type (
 	}
 )
 
+// NewRealClock returns a Clock whose implementation falls back to the
+// methods available in the time package.
 func NewRealClock() Clock {
 	return &realClock{}
 }
