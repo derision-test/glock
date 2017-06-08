@@ -85,6 +85,13 @@ func (c *mockClock) GetAfterArgs() []time.Duration {
 }
 
 //
+// Sleep utilities
+
+func (c *mockClock) Sleep(duration time.Duration) {
+	<-c.After(duration)
+}
+
+//
 // Ticker utilities
 
 func (c *mockClock) NewTicker(duration time.Duration) Ticker {
