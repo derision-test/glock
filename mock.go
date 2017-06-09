@@ -1,120 +1,201 @@
 package glock
 
-import "time"
-
-type (
-	mockClock struct {
-		current    time.Time
-		afterChan  <-chan time.Time
-		ticker     *mockTicker
-		afterArgs  []time.Duration
-		tickerArgs []time.Duration
-	}
-
-	mockTicker struct {
-		ch      <-chan time.Time
-		stopped bool
-	}
+import (
+	"sort"
+	"sync"
+	"time"
 )
 
-// NewMockClock return a mock clock that returns a nil after channel and ticke.r
-func NewMockClock() *mockClock {
-	return NewMockClockWithAfterChanAndTicker(nil, nil)
+type mockTriggers []*mockTrigger
+
+func (mt mockTriggers) Len() int {
+	return len(mt)
+}
+func (mt mockTriggers) Less(i, j int) bool {
+	return mt[i].trigger.Before(mt[j].trigger)
+}
+func (mt mockTriggers) Swap(i, j int) {
+	mt[i], mt[j] = mt[j], mt[i]
 }
 
-// NewMockClockWithAfterChan returns a mock clock that returns the given after channel
-// and a nil ticker.
-func NewMockClockWithAfterChan(afterChan <-chan time.Time) *mockClock {
-	return NewMockClockWithAfterChanAndTicker(afterChan, nil)
+type mockTrigger struct {
+	trigger time.Time
+	ch      chan time.Time
 }
 
-// NewMockClockWithAfterChan returns a mock clock that returns a nil after channel and
-// the given ticker.
-func NewMockClockWithTicker(ticker *mockTicker) *mockClock {
-	return NewMockClockWithAfterChanAndTicker(nil, ticker)
+// MockClock is an implementation of Clock that can be moved forward in time
+// in increments for testing code that relies on timeouts or other time-sensitive
+// constructs.
+type MockClock struct {
+	fakeTime time.Time
+
+	triggers mockTriggers
+	tickers  []*mockTicker
 }
 
-// NewMockClockWithAfterChanAndTicker returns a mock clock that returns the given after
-// channel and ticker.
-func NewMockClockWithAfterChanAndTicker(afterChan <-chan time.Time, ticker *mockTicker) *mockClock {
-	return &mockClock{
-		current:    time.Now(),
-		afterChan:  afterChan,
-		ticker:     ticker,
-		afterArgs:  []time.Duration{},
-		tickerArgs: []time.Duration{},
+// NewMockClock creates a new instance of MockClock with the internal time set
+// to time.Now()
+func NewMockClock() *MockClock {
+	return &MockClock{
+		fakeTime: time.Now(),
 	}
 }
 
-//
-// Now utilities
-
-func (c *mockClock) Now() time.Time {
-	return c.current
-}
-
-// SetCurrent sets the return value of calls to Now.
-func (c *mockClock) SetCurrent(time time.Time) {
-	c.current = time
-}
-
-// SetCurrentToNow sets the return value of calls to Now to the current time.
-func (c *mockClock) SetCurrentToNow() {
-	c.SetCurrent(time.Now())
-}
-
-// Advance advances the return value of calls to Now by the given duration.
-func (c *mockClock) Advance(duration time.Duration) {
-	c.SetCurrent(c.current.Add(duration))
-}
-
-//
-//  After utilities
-
-func (c *mockClock) After(duration time.Duration) <-chan time.Time {
-	c.afterArgs = append(c.afterArgs, duration)
-	return c.afterChan
-}
-
-// GetAfterArgs returns an ordered list of arguments to the After method.
-// This method resets the list.
-func (c *mockClock) GetAfterArgs() []time.Duration {
-	args := c.afterArgs
-	c.afterArgs = c.afterArgs[:0]
-	return args
-}
-
-//
-// Ticker utilities
-
-func (c *mockClock) NewTicker(duration time.Duration) Ticker {
-	c.tickerArgs = append(c.tickerArgs, duration)
-	return c.ticker
-}
-
-// GetAfterArgs returns an ordered list of arguments to the NewTicker method.
-// This method resets the list.
-func (c *mockClock) GetTickerArgs() []time.Duration {
-	args := c.tickerArgs
-	c.tickerArgs = c.tickerArgs[:0]
-	return args
-}
-
-func NewMockTicker(ch <-chan time.Time) *mockTicker {
-	return &mockTicker{
-		ch: ch,
+func (mc *MockClock) processTickers() {
+	now := mc.Now()
+	for _, ticker := range mc.tickers {
+		ticker.process(now)
 	}
 }
 
-func (t *mockTicker) Chan() <-chan time.Time {
-	return t.ch
+func (mc *MockClock) processTriggers() {
+	now := mc.Now()
+	triggered := 0
+	for _, trigger := range mc.triggers {
+		if trigger.trigger.Before(now) || trigger.trigger.Equal(now) {
+			trigger.ch <- trigger.trigger
+			triggered++
+		}
+	}
+
+	mc.triggers = mc.triggers[triggered:]
 }
 
-func (t *mockTicker) Stop() {
-	t.stopped = true
+// SetCurrent sets the internal MockClock time to the supplied time.
+func (mc *MockClock) SetCurrent(current time.Time) {
+	mc.fakeTime = current
 }
 
-// IsStopped returns true if Stop has been called.
-func (t *mockTicker) IsStopped() bool {
-	return t.stopped
+// Advance will advance the internal MockClock time by the supplied time.
+func (mc *MockClock) Advance(duration time.Duration) {
+	mc.fakeTime = mc.fakeTime.Add(duration)
+	mc.processTickers()
+	mc.processTriggers()
+}
+
+// Now returns the current time internal to the MockClock
+func (mc *MockClock) Now() time.Time {
+	return mc.fakeTime
+}
+
+// After returns a channel that will be sent the current internal MockClock
+// time once the MockClock's internal time is at or past the provided duration
+func (mc *MockClock) After(duration time.Duration) <-chan time.Time {
+	trigger := &mockTrigger{
+		trigger: mc.fakeTime.Add(duration),
+		ch:      make(chan time.Time, 1),
+	}
+	mc.triggers = append(mc.triggers, trigger)
+	sort.Sort(mc.triggers)
+
+	return trigger.ch
+}
+
+// Sleep will block until the internal MockClock time is at or past the
+// provided duration
+func (mc *MockClock) Sleep(duration time.Duration) {
+	<-mc.After(duration)
+}
+
+type mockTicker struct {
+	clock    *MockClock
+	duration time.Duration
+
+	started  time.Time
+	nextTick time.Time
+
+	processLock  sync.Mutex
+	processQueue []time.Time
+
+	writeLock sync.Mutex
+	writing   bool
+	ch        chan time.Time
+
+	stopped bool
+}
+
+// NewTicker creates a new Ticker tied to the internal MockClock time that ticks
+// at intervals similar to time.NewTicker().  It will also skip or drop ticks
+// for slow readers similar to time.NewTicker() as well.
+func (mc *MockClock) NewTicker(duration time.Duration) Ticker {
+	if duration == 0 {
+		panic("duration cannot be 0")
+	}
+
+	now := mc.Now()
+
+	ft := &mockTicker{
+		clock:    mc,
+		duration: duration,
+
+		started:  now,
+		nextTick: now.Add(duration),
+
+		processQueue: make([]time.Time, 0),
+		ch:           make(chan time.Time),
+	}
+	mc.tickers = append(mc.tickers, ft)
+
+	return ft
+}
+
+func (mt *mockTicker) process(now time.Time) {
+	if mt.stopped {
+		return
+	}
+
+	mt.processLock.Lock()
+	mt.processQueue = append(mt.processQueue, now)
+	mt.processLock.Unlock()
+
+	if !mt.writing && (mt.nextTick.Before(now) || mt.nextTick.Equal(now)) {
+		mt.writeLock.Lock()
+
+		mt.writing = true
+		go func() {
+			defer mt.writeLock.Unlock()
+
+			for {
+				mt.processLock.Lock()
+				if len(mt.processQueue) == 0 {
+					mt.processLock.Unlock()
+					break
+				}
+
+				procTime := mt.processQueue[0]
+				mt.processQueue = mt.processQueue[1:]
+
+				mt.processLock.Unlock()
+
+				if mt.nextTick.After(procTime) {
+					continue
+				}
+
+				mt.ch <- mt.nextTick
+
+				durationMod := procTime.Sub(mt.started) % mt.duration
+
+				if durationMod == 0 {
+					mt.nextTick = procTime.Add(mt.duration)
+				} else if procTime.Sub(mt.nextTick) > mt.duration {
+					mt.nextTick = procTime.Add(mt.duration - durationMod)
+				} else {
+					mt.nextTick = mt.nextTick.Add(mt.duration)
+				}
+			}
+
+			mt.writing = false
+		}()
+	}
+}
+
+// Chan returns a channel which will receive the MockClock's internal time
+// at the interval given when creating the ticker.
+func (mt *mockTicker) Chan() <-chan time.Time {
+	return mt.ch
+}
+
+// Stop will stop the ticker from ticking
+func (mt *mockTicker) Stop() {
+	mt.stopped = true
 }

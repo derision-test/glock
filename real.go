@@ -25,6 +25,10 @@ func (c *realClock) After(duration time.Duration) <-chan time.Time {
 	return time.After(duration)
 }
 
+func (c *realClock) Sleep(duration time.Duration) {
+	time.Sleep(duration)
+}
+
 func (c *realClock) NewTicker(duration time.Duration) Ticker {
 	return &realTicker{
 		ticker: time.NewTicker(duration),
