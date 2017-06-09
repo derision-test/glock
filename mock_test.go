@@ -7,33 +7,33 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type FakeSuite struct{}
+type MockSuite struct{}
 
-func (s *FakeSuite) TestNewFakeSuite(t *testing.T) {
+func (s *MockSuite) TestNewMockClock(t *testing.T) {
 	// Since we can't know the exact time that something gets created
-	// at least make sure a new fake clock picks up a time AROUND now
+	// at least make sure a new mock clock picks up a time AROUND now
 	// instead of an exact time
-	clock := NewFakeClock()
+	clock := NewMockClock()
 
 	since := time.Since(clock.fakeTime)
 	Expect(since).To(BeNumerically("<", 100*time.Millisecond))
 }
 
-func (s *FakeSuite) TestNow(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestNow(t *testing.T) {
+	clock := NewMockClock()
 
 	Expect(clock.Now()).To(Equal(clock.fakeTime))
 }
 
-func (s *FakeSuite) TestSetCurrent(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestSetCurrent(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(100, 0))
 
 	Expect(clock.Now()).To(Equal(time.Unix(100, 0)))
 }
 
-func (s *FakeSuite) TestAdvance(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestAdvance(t *testing.T) {
+	clock := NewMockClock()
 
 	clock.SetCurrent(time.Unix(100, 0))
 	Expect(clock.Now()).To(Equal(time.Unix(100, 0)))
@@ -45,8 +45,8 @@ func (s *FakeSuite) TestAdvance(t *testing.T) {
 	Expect(clock.Now()).To(Equal(time.Unix(3701, 0)))
 }
 
-func (s *FakeSuite) TestAfter(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestAfter(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	after := clock.After(1 * time.Second)
@@ -66,8 +66,8 @@ func (s *FakeSuite) TestAfter(t *testing.T) {
 	Consistently(after).ShouldNot(Receive())
 }
 
-func (s *FakeSuite) TestMultipleAfter(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestMultipleAfter(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	a1 := clock.After(1 * time.Second)
@@ -97,10 +97,10 @@ func (s *FakeSuite) TestMultipleAfter(t *testing.T) {
 	Consistently(a2).ShouldNot(Receive())
 }
 
-func (s *FakeSuite) TestAfterNotExact(t *testing.T) {
+func (s *MockSuite) TestAfterNotExact(t *testing.T) {
 	// Make sure triggers are still fired even if the
 	// time doesn't match up exactly with the trigger
-	clock := NewFakeClock()
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	a1 := clock.After(1 * time.Second)
@@ -111,8 +111,8 @@ func (s *FakeSuite) TestAfterNotExact(t *testing.T) {
 	Eventually(a2).Should(Receive(Equal(time.Unix(2, 0))))
 }
 
-func (s *FakeSuite) TestAfterTriggersSorted(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestAfterTriggersSorted(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	clock.After(3 * time.Second)
@@ -131,8 +131,8 @@ func (s *FakeSuite) TestAfterTriggersSorted(t *testing.T) {
 	Expect(clock.triggers[2].trigger).To(Equal(time.Unix(3, 0)))
 }
 
-func (s *FakeSuite) TestRemoveAfterTrigger(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestRemoveAfterTrigger(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	clock.After(1 * time.Second)
@@ -156,8 +156,8 @@ func (s *FakeSuite) TestRemoveAfterTrigger(t *testing.T) {
 	Expect(clock.triggers).To(HaveLen(0))
 }
 
-func (s *FakeSuite) TestSleep(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestSleep(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	sync := make(chan struct{})
@@ -184,16 +184,16 @@ func (s *FakeSuite) TestSleep(t *testing.T) {
 	Eventually(finished).Should(Receive(Equal(time.Unix(1, 0))))
 }
 
-func (s *FakeSuite) TestNewTickerNoDuration(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestNewTickerNoDuration(t *testing.T) {
+	clock := NewMockClock()
 
 	Expect(func() {
 		clock.NewTicker(0)
 	}).To(Panic())
 }
 
-func (s *FakeSuite) TestTickerOnTime(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestTickerOnTime(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	ticker := clock.NewTicker(2 * time.Second)
@@ -247,8 +247,8 @@ func main() {
 	fmt.Printf("%s %s\n", time.Now(), <-ticker.C)
 }
 */
-func (s *FakeSuite) TestTickerOffset2Second(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestTickerOffset2Second(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	ticker := clock.NewTicker(2 * time.Second)
@@ -308,8 +308,8 @@ func main() {
 	fmt.Printf("%s %s\n", time.Now(), <-ticker.C)
 }
 */
-func (s *FakeSuite) TestTickerOffset3Second(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestTickerOffset3Second(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	ticker := clock.NewTicker(3 * time.Second)
@@ -343,8 +343,8 @@ func (s *FakeSuite) TestTickerOffset3Second(t *testing.T) {
 	Eventually(ticker.Chan()).Should(Receive(Equal(time.Unix(39, 0))))
 }
 
-func (s *FakeSuite) TestMultipleTickers(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestMultipleTickers(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	t2 := clock.NewTicker(2 * time.Second)
@@ -375,8 +375,8 @@ func (s *FakeSuite) TestMultipleTickers(t *testing.T) {
 	Eventually(t3.Chan()).Should(Receive(Equal(time.Unix(6, 0))))
 }
 
-func (s *FakeSuite) TestTickerStopped(t *testing.T) {
-	clock := NewFakeClock()
+func (s *MockSuite) TestTickerStopped(t *testing.T) {
+	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
 	ticker := clock.NewTicker(2 * time.Second)
