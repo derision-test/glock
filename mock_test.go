@@ -45,6 +45,62 @@ func (s *MockSuite) TestAdvance(t *testing.T) {
 	Expect(clock.Now()).To(Equal(time.Unix(3701, 0)))
 }
 
+func (s *MockSuite) TestGetAfterArgs(t *testing.T) {
+	clock := NewMockClock()
+
+	clock.After(3 * time.Second)
+	clock.After(1 * time.Second)
+	clock.After(2 * time.Second)
+
+	args := clock.GetAfterArgs()
+	Expect(args).To(HaveLen(3))
+	Expect(args).To(Equal([]time.Duration{
+		3 * time.Second,
+		1 * time.Second,
+		2 * time.Second,
+	}))
+
+	clock.After(4 * time.Second)
+	clock.After(5 * time.Second)
+	clock.After(6 * time.Second)
+
+	args = clock.GetAfterArgs()
+	Expect(args).To(HaveLen(3))
+	Expect(args).To(Equal([]time.Duration{
+		4 * time.Second,
+		5 * time.Second,
+		6 * time.Second,
+	}))
+}
+
+func (s *MockSuite) TestGetTickerArgs(t *testing.T) {
+	clock := NewMockClock()
+
+	clock.NewTicker(3 * time.Second)
+	clock.NewTicker(1 * time.Second)
+	clock.NewTicker(2 * time.Second)
+
+	args := clock.GetTickerArgs()
+	Expect(args).To(HaveLen(3))
+	Expect(args).To(Equal([]time.Duration{
+		3 * time.Second,
+		1 * time.Second,
+		2 * time.Second,
+	}))
+
+	clock.NewTicker(4 * time.Second)
+	clock.NewTicker(5 * time.Second)
+	clock.NewTicker(6 * time.Second)
+
+	args = clock.GetTickerArgs()
+	Expect(args).To(HaveLen(3))
+	Expect(args).To(Equal([]time.Duration{
+		4 * time.Second,
+		5 * time.Second,
+		6 * time.Second,
+	}))
+}
+
 func (s *MockSuite) TestAfter(t *testing.T) {
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))

@@ -29,8 +29,13 @@ type mockTrigger struct {
 type MockClock struct {
 	fakeTime time.Time
 
-	triggers mockTriggers
-	tickers  []*mockTicker
+	afterLock sync.Mutex
+	triggers  mockTriggers
+	afterArgs []time.Duration
+
+	tickerLock sync.Mutex
+	tickers    []*mockTicker
+	tickerArgs []time.Duration
 }
 
 // NewMockClock creates a new instance of MockClock with the internal time set
@@ -38,10 +43,18 @@ type MockClock struct {
 func NewMockClock() *MockClock {
 	return &MockClock{
 		fakeTime: time.Now(),
+
+		tickers: make([]*mockTicker, 0),
+
+		afterArgs:  make([]time.Duration, 0),
+		tickerArgs: make([]time.Duration, 0),
 	}
 }
 
 func (mc *MockClock) processTickers() {
+	mc.tickerLock.Lock()
+	defer mc.tickerLock.Unlock()
+
 	now := mc.Now()
 	for _, ticker := range mc.tickers {
 		ticker.process(now)
@@ -49,6 +62,9 @@ func (mc *MockClock) processTickers() {
 }
 
 func (mc *MockClock) processTriggers() {
+	mc.afterLock.Lock()
+	mc.afterLock.Unlock()
+
 	now := mc.Now()
 	triggered := 0
 	for _, trigger := range mc.triggers {
@@ -81,12 +97,17 @@ func (mc *MockClock) Now() time.Time {
 // After returns a channel that will be sent the current internal MockClock
 // time once the MockClock's internal time is at or past the provided duration
 func (mc *MockClock) After(duration time.Duration) <-chan time.Time {
+	mc.afterLock.Lock()
+	defer mc.afterLock.Unlock()
+
 	trigger := &mockTrigger{
 		trigger: mc.fakeTime.Add(duration),
 		ch:      make(chan time.Time, 1),
 	}
 	mc.triggers = append(mc.triggers, trigger)
 	sort.Sort(mc.triggers)
+
+	mc.afterArgs = append(mc.afterArgs, duration)
 
 	return trigger.ch
 }
@@ -95,6 +116,30 @@ func (mc *MockClock) After(duration time.Duration) <-chan time.Time {
 // provided duration
 func (mc *MockClock) Sleep(duration time.Duration) {
 	<-mc.After(duration)
+}
+
+// GetAfterArgs returns the duration of each call to After in the
+// same order as they were called. The list is cleared each time
+// GetAfterArgs is called.
+func (mc *MockClock) GetAfterArgs() []time.Duration {
+	mc.afterLock.Lock()
+	defer mc.afterLock.Unlock()
+
+	args := mc.afterArgs
+	mc.afterArgs = mc.afterArgs[:0]
+	return args
+}
+
+// GetTickerArgs returns the duration of each call to create a new
+// ticker in the same order as they were called. The list is cleared
+// each time GetTickerArgs is called.
+func (mc *MockClock) GetTickerArgs() []time.Duration {
+	mc.tickerLock.Lock()
+	defer mc.tickerLock.Unlock()
+
+	args := mc.tickerArgs
+	mc.tickerArgs = mc.tickerArgs[:0]
+	return args
 }
 
 type mockTicker struct {
@@ -134,7 +179,11 @@ func (mc *MockClock) NewTicker(duration time.Duration) Ticker {
 		processQueue: make([]time.Time, 0),
 		ch:           make(chan time.Time),
 	}
+
+	mc.tickerLock.Lock()
 	mc.tickers = append(mc.tickers, ft)
+	mc.tickerArgs = append(mc.tickerArgs, duration)
+	mc.tickerLock.Unlock()
 
 	return ft
 }
