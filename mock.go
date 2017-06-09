@@ -69,7 +69,7 @@ func (mc *MockClock) processTickers() {
 
 func (mc *MockClock) processTriggers() {
 	mc.afterLock.Lock()
-	mc.afterLock.Unlock()
+	defer mc.afterLock.Unlock()
 
 	now := mc.Now()
 	triggered := 0
