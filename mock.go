@@ -38,11 +38,17 @@ type MockClock struct {
 	tickerArgs []time.Duration
 }
 
-// NewMockClock creates a new instance of MockClock with the internal time set
+// NewMockClock creates a new MockClock with the internal time set
 // to time.Now()
 func NewMockClock() *MockClock {
+	return NewMockClockAt(time.Now())
+}
+
+// NewMockClockAt creates a new MockClick with the internal time set
+// to the provided time.
+func NewMockClockAt(now time.Time) *MockClock {
 	return &MockClock{
-		fakeTime: time.Now(),
+		fakeTime: now,
 
 		tickers: make([]*mockTicker, 0),
 
