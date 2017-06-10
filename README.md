@@ -9,8 +9,8 @@ Small go library for mocking parts of the [time package](https://golang.org/pkg/
 
 ## Example
 
-The package contains a `Clock` and `Ticker` interface which wrap the `time.Now` and `time.After`
-functions and the `Ticker` struct, respectively.
+The package contains a `Clock` and `Ticker` interface which wrap the `time.Now`, `time.After`,
+adnd `time.Sleep` functions and the `Ticker` struct, respectively.
 
 A *real* clock can be created for general (non-test) use. This implementation simply falls back
 to the functions provided in the time package. 
@@ -27,7 +27,7 @@ t.Stop()                          // stops the ticker
 
 In order to make unit tests that depend on time deterministic (and free of sleep calls), a *mock*
 clock can be used in place of the real clock. The mock clock allows you to control the current
-time with `SetCurrent`, `SetCurrentToNow`, and `Advance` methods.
+time with `SetCurrent` and `Advance` methods.
 
 ```go
 clock := glock.NewMockClock()
@@ -38,38 +38,31 @@ clock.SetCurrent(time.Unix(603288000, 0))
 clock.Now() // returns Feb 12, 1989
 clock.Advance(time.Day)
 clock.Now() // returns Feb 13, 1989
-clock.SetCurrentToNow()
-clock.Now() // returns time of previous call
 ```
 
-The mock clock also allows you to control the point at which the `After` and `Ticker` channels
-yield a value, and also stores the arguments of the methods for later inspection. It is up to
-the user to close the associated channels in unit tests (they are not closed automatically). Be
-careful not to close a channel too early, as a read from a closed channel will immediately yield.
+The `Advance` method will also trigger a value on the channels created by the `After` and
+`Ticker` functions.
 
 ```go
-ch := make(chan time.Time)
-clock := glock.NewMockClockWithAfterChan(ch)
+clock := glock.NewMockClockAt(time.Unix(603288000, 0))
 
-clock.After(time.Minute) // returns ch
-clock.After(time.Second) // returns ch
-clock.GetAfterArgs()     // returns {time.Minute, time.Second}
-clock.After(time.Hour)   // returns ch
-clock.GetAfterArgs()     // returns {time.Hour}
+c1 := clock.After(time.Second)
+c2 := clock.After(time.Minute)
+clock.GetAfterArgs()            // returns {time.Second, time.Minute}
+clock.GetAfterArgs()            // returns {}
+clock.Advance(time.Second * 30) // Fires c2
+clock.Advance(time.Second * 30) // Fires c1
 ```
 
 ```go
-ch := make(chan time.Time)
-ticker := glock.NewMockTicker(ch)
+clock := glock.NewMockClock()
+ticker := clock.NewTicker(time.Minute)
 
-clock := glock.NewMockClockWithTicker(ticker)
-clock.NewTicker(time.Second) // returns ticker
-clock.GetTickerArgs()        // returns {time.Second}
-
-ticker.Chan()      // returns ch
-ticker.IsStopped() // returns false
-ticker.Stop()
-ticker.IsStopped() // returns true
+ch := ticker.Chan()
+clock.Advance(time.Second * 30)
+clock.Advance(time.Second * 30) // Fires ch
+clock.Advance(time.Second * 30)
+clock.Advance(time.Second * 30) // Fires ch
 ```
 
 ## License
