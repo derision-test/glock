@@ -1,6 +1,9 @@
 # Glock
 
 [![GoDoc](https://godoc.org/github.com/efritz/glock?status.svg)](https://godoc.org/github.com/efritz/glock)
+[![Build Status](https://secure.travis-ci.org/efritz/glock.png)](http://travis-ci.org/efritz/glock)
+[![codecov.io](http://codecov.io/github/efritz/glock/coverage.svg?branch=master)](http://codecov.io/github/efritz/glock?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/efritz/glock)](https://goreportcard.com/report/github.com/efritz/glock)
 
 Small go library for mocking parts of the [time package](https://golang.org/pkg/time/).
 
