@@ -175,12 +175,10 @@ func (mc *MockClock) NewTicker(duration time.Duration) Ticker {
 	now := mc.Now()
 
 	ft := &mockTicker{
-		clock:    mc,
-		duration: duration,
-
-		started:  now,
-		nextTick: now.Add(duration),
-
+		clock:        mc,
+		duration:     duration,
+		started:      now,
+		nextTick:     now.Add(duration),
 		processQueue: make([]time.Time, 0),
 		ch:           make(chan time.Time),
 	}
