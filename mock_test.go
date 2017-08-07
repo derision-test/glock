@@ -45,6 +45,31 @@ func (s *MockSuite) TestAdvance(t *testing.T) {
 	Expect(clock.Now()).To(Equal(time.Unix(3701, 0)))
 }
 
+func (s *MockSuite) TestBlockingAdvance(t *testing.T) {
+	var (
+		clock = NewMockClock()
+		sync  = make(chan struct{})
+		done  = make(chan struct{})
+	)
+
+	clock.SetCurrent(time.Unix(100, 0))
+	Expect(clock.Now()).To(Equal(time.Unix(100, 0)))
+
+	go func() {
+		<-sync
+		clock.BlockingAdvance(time.Second)
+		close(done)
+	}()
+
+	clock.After(time.Second)
+	Expect(clock.Now()).To(Equal(time.Unix(100, 0)))
+	Consistently(done).ShouldNot(BeClosed())
+
+	close(sync)
+	Eventually(done).Should(BeClosed())
+	Expect(clock.Now()).To(Equal(time.Unix(101, 0)))
+}
+
 func (s *MockSuite) TestGetAfterArgs(t *testing.T) {
 	clock := NewMockClock()
 

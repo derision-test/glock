@@ -6,37 +6,28 @@ import (
 	"time"
 )
 
-type mockTriggers []*mockTrigger
+type (
+	// MockClock is an implementation of Clock that can be moved forward in time
+	// in increments for testing code that relies on timeouts or other time-sensitive
+	// constructs.
+	MockClock struct {
+		fakeTime   time.Time
+		triggers   mockTriggers
+		tickers    mockTickers
+		afterArgs  []time.Duration
+		tickerArgs []time.Duration
+		afterLock  sync.Mutex
+		tickerLock sync.Mutex
+	}
 
-func (mt mockTriggers) Len() int {
-	return len(mt)
-}
-func (mt mockTriggers) Less(i, j int) bool {
-	return mt[i].trigger.Before(mt[j].trigger)
-}
-func (mt mockTriggers) Swap(i, j int) {
-	mt[i], mt[j] = mt[j], mt[i]
-}
+	mockTrigger struct {
+		trigger time.Time
+		ch      chan time.Time
+	}
 
-type mockTrigger struct {
-	trigger time.Time
-	ch      chan time.Time
-}
-
-// MockClock is an implementation of Clock that can be moved forward in time
-// in increments for testing code that relies on timeouts or other time-sensitive
-// constructs.
-type MockClock struct {
-	fakeTime time.Time
-
-	afterLock sync.Mutex
-	triggers  mockTriggers
-	afterArgs []time.Duration
-
-	tickerLock sync.Mutex
-	tickers    []*mockTicker
-	tickerArgs []time.Duration
-}
+	mockTriggers []*mockTrigger
+	mockTickers  []*mockTicker
+)
 
 // NewMockClock creates a new MockClock with the internal time set
 // to time.Now()
@@ -48,22 +39,10 @@ func NewMockClock() *MockClock {
 // to the provided time.
 func NewMockClockAt(now time.Time) *MockClock {
 	return &MockClock{
-		fakeTime: now,
-
-		tickers: make([]*mockTicker, 0),
-
+		fakeTime:   now,
+		tickers:    make([]*mockTicker, 0),
 		afterArgs:  make([]time.Duration, 0),
 		tickerArgs: make([]time.Duration, 0),
-	}
-}
-
-func (mc *MockClock) processTickers() {
-	mc.tickerLock.Lock()
-	defer mc.tickerLock.Unlock()
-
-	now := mc.Now()
-	for _, ticker := range mc.tickers {
-		ticker.process(now)
 	}
 }
 
@@ -83,6 +62,16 @@ func (mc *MockClock) processTriggers() {
 	mc.triggers = mc.triggers[triggered:]
 }
 
+func (mc *MockClock) processTickers() {
+	mc.tickerLock.Lock()
+	defer mc.tickerLock.Unlock()
+
+	now := mc.Now()
+	for _, ticker := range mc.tickers {
+		ticker.process(now)
+	}
+}
+
 // SetCurrent sets the internal MockClock time to the supplied time.
 func (mc *MockClock) SetCurrent(current time.Time) {
 	mc.fakeTime = current
@@ -91,8 +80,22 @@ func (mc *MockClock) SetCurrent(current time.Time) {
 // Advance will advance the internal MockClock time by the supplied time.
 func (mc *MockClock) Advance(duration time.Duration) {
 	mc.fakeTime = mc.fakeTime.Add(duration)
-	mc.processTickers()
 	mc.processTriggers()
+	mc.processTickers()
+}
+
+func (mc *MockClock) BlockingAdvance(duration time.Duration) {
+	for {
+		mc.afterLock.Lock()
+		numTriggers := len(mc.triggers)
+		mc.afterLock.Unlock()
+
+		if numTriggers > 0 {
+			break
+		}
+	}
+
+	mc.Advance(duration)
 }
 
 // Now returns the current time internal to the MockClock
@@ -110,9 +113,9 @@ func (mc *MockClock) After(duration time.Duration) <-chan time.Time {
 		trigger: mc.fakeTime.Add(duration),
 		ch:      make(chan time.Time, 1),
 	}
+
 	mc.triggers = append(mc.triggers, trigger)
 	sort.Sort(mc.triggers)
-
 	mc.afterArgs = append(mc.afterArgs, duration)
 
 	return trigger.ch
@@ -149,20 +152,16 @@ func (mc *MockClock) GetTickerArgs() []time.Duration {
 }
 
 type mockTicker struct {
-	clock    *MockClock
-	duration time.Duration
-
-	started  time.Time
-	nextTick time.Time
-
+	clock        *MockClock
+	duration     time.Duration
+	started      time.Time
+	nextTick     time.Time
 	processLock  sync.Mutex
 	processQueue []time.Time
-
-	writeLock sync.Mutex
-	writing   bool
-	ch        chan time.Time
-
-	stopped bool
+	writeLock    sync.Mutex
+	writing      bool
+	ch           chan time.Time
+	stopped      bool
 }
 
 // NewTicker creates a new Ticker tied to the internal MockClock time that ticks
@@ -253,4 +252,19 @@ func (mt *mockTicker) Chan() <-chan time.Time {
 // Stop will stop the ticker from ticking
 func (mt *mockTicker) Stop() {
 	mt.stopped = true
+}
+
+//
+// Trigger Sort
+
+func (mt mockTriggers) Len() int {
+	return len(mt)
+}
+
+func (mt mockTriggers) Less(i, j int) bool {
+	return mt[i].trigger.Before(mt[j].trigger)
+}
+
+func (mt mockTriggers) Swap(i, j int) {
+	mt[i], mt[j] = mt[j], mt[i]
 }
