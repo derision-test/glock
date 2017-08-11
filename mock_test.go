@@ -65,9 +65,11 @@ func (s *MockSuite) TestAdvanceMultipleTriggers(t *testing.T) {
 	clock.Advance(6 * time.Millisecond)
 	Eventually(results).Should(BeSent(1))
 	Eventually(results).Should(BeSent(2))
+	Eventually(results).ShouldNot(Receive())
 
 	clock.Advance(4 * time.Millisecond)
 	Eventually(results).Should(BeSent(3))
+	Eventually(results).Should(Receive())
 }
 
 func (s *MockSuite) TestBlockingAdvance(t *testing.T) {
