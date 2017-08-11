@@ -45,6 +45,31 @@ func (s *MockSuite) TestAdvance(t *testing.T) {
 	Expect(clock.Now()).To(Equal(time.Unix(3701, 0)))
 }
 
+func (s *MockSuite) TestAdvanceMultipleTriggers(t *testing.T) {
+	clock := NewMockClock()
+
+	results := make(chan int, 5)
+	go func() {
+		clock.Sleep(10 * time.Millisecond)
+		results <- 1
+	}()
+	go func() {
+		clock.Sleep(5 * time.Millisecond)
+		results <- 2
+	}()
+	go func() {
+		clock.Sleep(1 * time.Millisecond)
+		results <- 3
+	}()
+
+	clock.Advance(6 * time.Millisecond)
+	Eventually(results).Should(BeSent(1))
+	Eventually(results).Should(BeSent(2))
+
+	clock.Advance(4 * time.Millisecond)
+	Eventually(results).Should(BeSent(3))
+}
+
 func (s *MockSuite) TestBlockingAdvance(t *testing.T) {
 	var (
 		clock = NewMockClock()
