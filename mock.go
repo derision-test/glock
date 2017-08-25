@@ -16,7 +16,7 @@ type (
 		tickers    mockTickers
 		afterArgs  []time.Duration
 		tickerArgs []time.Duration
-		afterLock  sync.Mutex
+		afterLock  sync.RWMutex
 		tickerLock sync.Mutex
 	}
 
@@ -119,6 +119,15 @@ func (mc *MockClock) After(duration time.Duration) <-chan time.Time {
 	mc.afterArgs = append(mc.afterArgs, duration)
 
 	return trigger.ch
+}
+
+// BlockedOnAfter returns the number of calls to After that are blocked
+// waiting for a call to Advance to trigger them.
+func (mc *MockClock) BlockedOnAfter() int {
+	mc.afterLock.RLock()
+	defer mc.afterLock.RUnlock()
+
+	return len(mc.triggers)
 }
 
 // Sleep will block until the internal MockClock time is at or past the
