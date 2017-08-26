@@ -1,6 +1,7 @@
 package glock
 
 import (
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -84,15 +85,11 @@ func (mc *MockClock) Advance(duration time.Duration) {
 	mc.processTickers()
 }
 
+// BlockingAdvance will call Advance but only after there is another routine
+// which is blocking on the channel result of a call to After.
 func (mc *MockClock) BlockingAdvance(duration time.Duration) {
-	for {
-		mc.afterLock.Lock()
-		numTriggers := len(mc.triggers)
-		mc.afterLock.Unlock()
-
-		if numTriggers > 0 {
-			break
-		}
+	for mc.BlockedOnAfter() == 0 {
+		runtime.Gosched()
 	}
 
 	mc.Advance(duration)
