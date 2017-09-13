@@ -124,8 +124,12 @@ func (mc *MockClock) After(duration time.Duration) <-chan time.Time {
 	}
 
 	mc.triggers = append(mc.triggers, trigger)
-	sort.Sort(mc.triggers)
 	mc.afterArgs = append(mc.afterArgs, duration)
+
+	sort.Slice(mc.triggers, func(i, j int) bool {
+		return mc.triggers[i].trigger.Before(mc.triggers[j].trigger)
+	})
+
 	return trigger.ch
 }
 
@@ -267,19 +271,4 @@ func (mt *mockTicker) Chan() <-chan time.Time {
 // Stop will stop the ticker from ticking
 func (mt *mockTicker) Stop() {
 	mt.stopped = true
-}
-
-//
-// Trigger Sort
-
-func (mt mockTriggers) Len() int {
-	return len(mt)
-}
-
-func (mt mockTriggers) Less(i, j int) bool {
-	return mt[i].trigger.Before(mt[j].trigger)
-}
-
-func (mt mockTriggers) Swap(i, j int) {
-	mt[i], mt[j] = mt[j], mt[i]
 }
