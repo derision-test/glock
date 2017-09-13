@@ -59,11 +59,12 @@ func (mc *MockClock) SetCurrent(current time.Time) {
 // Advance will advance the internal MockClock time by the supplied time.
 func (mc *MockClock) Advance(duration time.Duration) {
 	mc.nowLock.Lock()
-	defer mc.nowLock.Unlock()
+	now := mc.fakeTime.Add(duration)
+	mc.fakeTime = now
+	mc.nowLock.Unlock()
 
-	mc.fakeTime = mc.fakeTime.Add(duration)
-	mc.processTriggers(mc.fakeTime)
-	mc.processTickers(mc.fakeTime)
+	mc.processTriggers(now)
+	mc.processTickers(now)
 }
 
 func (mc *MockClock) processTriggers(now time.Time) {
@@ -102,6 +103,9 @@ func (mc *MockClock) BlockingAdvance(duration time.Duration) {
 
 // Now returns the current time internal to the MockClock
 func (mc *MockClock) Now() time.Time {
+	mc.nowLock.RLock()
+	defer mc.nowLock.RUnlock()
+
 	return mc.fakeTime
 }
 
