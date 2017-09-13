@@ -86,7 +86,7 @@ func (mc *MockClock) processTickers(now time.Time) {
 	defer mc.tickerLock.Unlock()
 
 	for _, ticker := range mc.tickers {
-		ticker.process(now)
+		ticker.publish(now)
 	}
 }
 
@@ -174,12 +174,12 @@ type mockTicker struct {
 	duration     time.Duration
 	started      time.Time
 	nextTick     time.Time
-	processLock  sync.Mutex
 	processQueue []time.Time
-	writeLock    sync.Mutex
-	writing      bool
 	ch           chan time.Time
+	wakeup       chan struct{}
 	stopped      bool
+	processLock  sync.Mutex
+	stoppedLock  sync.RWMutex
 }
 
 // NewTicker creates a new Ticker tied to the internal MockClock time that ticks
@@ -191,72 +191,23 @@ func (mc *MockClock) NewTicker(duration time.Duration) Ticker {
 	}
 
 	now := mc.Now()
-
-	ft := &mockTicker{
+	ticker := &mockTicker{
 		clock:        mc,
 		duration:     duration,
 		started:      now,
 		nextTick:     now.Add(duration),
 		processQueue: make([]time.Time, 0),
 		ch:           make(chan time.Time),
+		wakeup:       make(chan struct{}, 1),
 	}
 
 	mc.tickerLock.Lock()
-	mc.tickers = append(mc.tickers, ft)
+	defer mc.tickerLock.Unlock()
+
+	mc.tickers = append(mc.tickers, ticker)
 	mc.tickerArgs = append(mc.tickerArgs, duration)
-	mc.tickerLock.Unlock()
-
-	return ft
-}
-
-func (mt *mockTicker) process(now time.Time) {
-	if mt.stopped {
-		return
-	}
-
-	mt.processLock.Lock()
-	mt.processQueue = append(mt.processQueue, now)
-	mt.processLock.Unlock()
-
-	if !mt.writing && (mt.nextTick.Before(now) || mt.nextTick.Equal(now)) {
-		mt.writeLock.Lock()
-
-		mt.writing = true
-		go func() {
-			defer mt.writeLock.Unlock()
-
-			for {
-				mt.processLock.Lock()
-				if len(mt.processQueue) == 0 {
-					mt.processLock.Unlock()
-					break
-				}
-
-				procTime := mt.processQueue[0]
-				mt.processQueue = mt.processQueue[1:]
-
-				mt.processLock.Unlock()
-
-				if mt.nextTick.After(procTime) {
-					continue
-				}
-
-				mt.ch <- mt.nextTick
-
-				durationMod := procTime.Sub(mt.started) % mt.duration
-
-				if durationMod == 0 {
-					mt.nextTick = procTime.Add(mt.duration)
-				} else if procTime.Sub(mt.nextTick) > mt.duration {
-					mt.nextTick = procTime.Add(mt.duration - durationMod)
-				} else {
-					mt.nextTick = mt.nextTick.Add(mt.duration)
-				}
-			}
-
-			mt.writing = false
-		}()
-	}
+	go ticker.process()
+	return ticker
 }
 
 // Chan returns a channel which will receive the MockClock's internal time
@@ -267,5 +218,75 @@ func (mt *mockTicker) Chan() <-chan time.Time {
 
 // Stop will stop the ticker from ticking
 func (mt *mockTicker) Stop() {
+	mt.stoppedLock.Lock()
+	defer mt.stoppedLock.Unlock()
+
 	mt.stopped = true
+	mt.wakeup <- struct{}{}
+}
+
+func (mt *mockTicker) publish(now time.Time) {
+	if mt.isStopped() {
+		return
+	}
+
+	mt.processLock.Lock()
+	mt.processQueue = append(mt.processQueue, now)
+	mt.processLock.Unlock()
+
+	select {
+	case mt.wakeup <- struct{}{}:
+	default:
+	}
+}
+
+func (mt *mockTicker) process() {
+	defer close(mt.wakeup)
+
+	for !mt.isStopped() {
+		for {
+			first, ok := mt.pop()
+			if !ok {
+				break
+			}
+
+			if mt.nextTick.After(first) {
+				continue
+			}
+
+			mt.ch <- mt.nextTick
+
+			durationMod := first.Sub(mt.started) % mt.duration
+
+			if durationMod == 0 {
+				mt.nextTick = first.Add(mt.duration)
+			} else if first.Sub(mt.nextTick) > mt.duration {
+				mt.nextTick = first.Add(mt.duration - durationMod)
+			} else {
+				mt.nextTick = mt.nextTick.Add(mt.duration)
+			}
+		}
+
+		<-mt.wakeup
+	}
+}
+
+func (mt *mockTicker) pop() (time.Time, bool) {
+	mt.processLock.Lock()
+	defer mt.processLock.Unlock()
+
+	if len(mt.processQueue) == 0 {
+		return time.Unix(0, 0), false
+	}
+
+	first := mt.processQueue[0]
+	mt.processQueue = mt.processQueue[1:]
+	return first, true
+}
+
+func (mt *mockTicker) isStopped() bool {
+	mt.stoppedLock.RLock()
+	defer mt.stoppedLock.RUnlock()
+
+	return mt.stopped
 }
