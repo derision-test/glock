@@ -48,11 +48,27 @@ func NewMockClockAt(now time.Time) *MockClock {
 	}
 }
 
-func (mc *MockClock) processTriggers() {
+// SetCurrent sets the internal MockClock time to the supplied time.
+func (mc *MockClock) SetCurrent(current time.Time) {
+	mc.nowLock.Lock()
+	defer mc.nowLock.Unlock()
+
+	mc.fakeTime = current
+}
+
+// Advance will advance the internal MockClock time by the supplied time.
+func (mc *MockClock) Advance(duration time.Duration) {
+	mc.nowLock.Lock()
+	defer mc.nowLock.Unlock()
+
+	mc.fakeTime = mc.fakeTime.Add(duration)
+	mc.processTriggers(mc.fakeTime)
+	mc.processTickers(mc.fakeTime)
+}
+
+func (mc *MockClock) processTriggers(now time.Time) {
 	mc.afterLock.Lock()
 	defer mc.afterLock.Unlock()
-
-	now := mc.Now()
 
 	triggered := 0
 	for _, trigger := range mc.triggers {
@@ -65,32 +81,13 @@ func (mc *MockClock) processTriggers() {
 	mc.triggers = mc.triggers[triggered:]
 }
 
-func (mc *MockClock) processTickers() {
+func (mc *MockClock) processTickers(now time.Time) {
 	mc.tickerLock.Lock()
 	defer mc.tickerLock.Unlock()
 
-	now := mc.Now()
 	for _, ticker := range mc.tickers {
 		ticker.process(now)
 	}
-}
-
-// SetCurrent sets the internal MockClock time to the supplied time.
-func (mc *MockClock) SetCurrent(current time.Time) {
-	mc.nowLock.Lock()
-	defer mc.nowLock.Unlock()
-
-	mc.fakeTime = current
-}
-
-// Advance will advance the internal MockClock time by the supplied time.
-func (mc *MockClock) Advance(duration time.Duration) {
-	mc.nowLock.Lock()
-	mc.fakeTime = mc.fakeTime.Add(duration)
-	mc.nowLock.Unlock()
-
-	mc.processTriggers()
-	mc.processTickers()
 }
 
 // BlockingAdvance will call Advance but only after there is another routine
