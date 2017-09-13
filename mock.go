@@ -17,6 +17,7 @@ type (
 		tickers    mockTickers
 		afterArgs  []time.Duration
 		tickerArgs []time.Duration
+		nowLock    sync.RWMutex
 		afterLock  sync.RWMutex
 		tickerLock sync.Mutex
 	}
@@ -52,6 +53,7 @@ func (mc *MockClock) processTriggers() {
 	defer mc.afterLock.Unlock()
 
 	now := mc.Now()
+
 	triggered := 0
 	for _, trigger := range mc.triggers {
 		if trigger.trigger.Before(now) || trigger.trigger.Equal(now) {
@@ -75,12 +77,18 @@ func (mc *MockClock) processTickers() {
 
 // SetCurrent sets the internal MockClock time to the supplied time.
 func (mc *MockClock) SetCurrent(current time.Time) {
+	mc.nowLock.Lock()
+	defer mc.nowLock.Unlock()
+
 	mc.fakeTime = current
 }
 
 // Advance will advance the internal MockClock time by the supplied time.
 func (mc *MockClock) Advance(duration time.Duration) {
+	mc.nowLock.Lock()
 	mc.fakeTime = mc.fakeTime.Add(duration)
+	mc.nowLock.Unlock()
+
 	mc.processTriggers()
 	mc.processTickers()
 }
@@ -103,18 +111,21 @@ func (mc *MockClock) Now() time.Time {
 // After returns a channel that will be sent the current internal MockClock
 // time once the MockClock's internal time is at or past the provided duration
 func (mc *MockClock) After(duration time.Duration) <-chan time.Time {
+	mc.nowLock.RLock()
+	triggerTime := mc.fakeTime.Add(duration)
+	mc.nowLock.RUnlock()
+
 	mc.afterLock.Lock()
 	defer mc.afterLock.Unlock()
 
 	trigger := &mockTrigger{
-		trigger: mc.fakeTime.Add(duration),
+		trigger: triggerTime,
 		ch:      make(chan time.Time, 1),
 	}
 
 	mc.triggers = append(mc.triggers, trigger)
 	sort.Sort(mc.triggers)
 	mc.afterArgs = append(mc.afterArgs, duration)
-
 	return trigger.ch
 }
 
