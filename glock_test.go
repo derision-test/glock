@@ -55,29 +55,36 @@ func (s *MockSuite) TestAdvance(t sweet.T) {
 }
 
 func (s *MockSuite) TestAdvanceMultipleTriggers(t sweet.T) {
-	clock := NewMockClock()
+	var (
+		clock   = NewMockClock()
+		results = make(chan struct{})
+	)
 
-	results := make(chan int, 5)
 	go func() {
 		clock.Sleep(10 * time.Millisecond)
-		results <- 1
+		results <- struct{}{}
 	}()
+
 	go func() {
 		clock.Sleep(5 * time.Millisecond)
-		results <- 2
+		results <- struct{}{}
 	}()
+
 	go func() {
 		clock.Sleep(1 * time.Millisecond)
-		results <- 3
+		results <- struct{}{}
 	}()
 
-	clock.Advance(6 * time.Millisecond)
-	Eventually(results).Should(BeSent(1))
-	Eventually(results).Should(BeSent(2))
-	Eventually(results).ShouldNot(Receive())
+	// Allow goroutines to schedule
+	<-time.After(time.Millisecond * 25)
 
+	clock.Advance(6 * time.Millisecond)
+
+	Eventually(results).Should(Receive())
+	Eventually(results).Should(Receive())
+
+	Eventually(results).ShouldNot(Receive())
 	clock.Advance(4 * time.Millisecond)
-	Eventually(results).Should(BeSent(3))
 	Eventually(results).Should(Receive())
 }
 
