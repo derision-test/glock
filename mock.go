@@ -31,6 +31,9 @@ type (
 	mockTickers  []*mockTicker
 )
 
+// Make sure MockClock conforms to the interfaces
+var _ Clock = &MockClock{}
+
 // NewMockClock creates a new MockClock with the internal time set
 // to time.Now()
 func NewMockClock() *MockClock {
@@ -147,6 +150,16 @@ func (mc *MockClock) BlockedOnAfter() int {
 // provided duration
 func (mc *MockClock) Sleep(duration time.Duration) {
 	<-mc.After(duration)
+}
+
+// Since returns the time elapsed since t.
+func (mc *MockClock) Since(t time.Time) time.Duration {
+	return mc.Now().Sub(t)
+}
+
+// Until returns the duration until t.
+func (mc *MockClock) Until(t time.Time) time.Duration {
+	return t.Sub(mc.Now())
 }
 
 // GetAfterArgs returns the duration of each call to After in the
