@@ -16,6 +16,12 @@ type (
 		// Sleep blocks until the given duration elapses.
 		Sleep(duration time.Duration)
 
+		// Since returns the time elapsed since t.
+		Since(t time.Time) time.Duration
+
+		// Until returns the duration until t.
+		Until(t time.Time) time.Duration
+
 		// NewTicker will construct a ticker which will continually fire,
 		// pausing for the given duration in between invocations.
 		NewTicker(duration time.Duration) Ticker

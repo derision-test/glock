@@ -328,6 +328,22 @@ func (s *MockSuite) TestSleep(t sweet.T) {
 	Eventually(finished).Should(Receive(Equal(time.Unix(1, 0))))
 }
 
+func (s *MockSuite) TestSince(t sweet.T) {
+	clock := NewMockClockAt(time.Unix(10, 0))
+
+	Expect(clock.Since(time.Unix(10, 0))).To(Equal(time.Duration(0)))
+	Expect(clock.Since(time.Unix(5, 0))).To(Equal(5 * time.Second))
+	Expect(clock.Since(time.Unix(15, 0))).To(Equal(-5 * time.Second))
+}
+
+func (s *MockSuite) TestUntil(t sweet.T) {
+	clock := NewMockClockAt(time.Unix(10, 0))
+
+	Expect(clock.Until(time.Unix(10, 0))).To(Equal(time.Duration(0)))
+	Expect(clock.Until(time.Unix(5, 0))).To(Equal(-5 * time.Second))
+	Expect(clock.Until(time.Unix(15, 0))).To(Equal(5 * time.Second))
+}
+
 func (s *MockSuite) TestNewTickerNoDuration(t sweet.T) {
 	clock := NewMockClock()
 
