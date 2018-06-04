@@ -2,8 +2,8 @@
 
 [![GoDoc](https://godoc.org/github.com/efritz/glock?status.svg)](https://godoc.org/github.com/efritz/glock)
 [![Build Status](https://secure.travis-ci.org/efritz/glock.png)](http://travis-ci.org/efritz/glock)
-[![codecov.io](http://codecov.io/github/efritz/glock/coverage.svg?branch=master)](http://codecov.io/github/efritz/glock?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/efritz/glock)](https://goreportcard.com/report/github.com/efritz/glock)
+[![Maintainability](https://api.codeclimate.com/v1/badges/45c92a2ed058b29a2afc/maintainability)](https://codeclimate.com/github/efritz/glock/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/45c92a2ed058b29a2afc/test_coverage)](https://codeclimate.com/github/efritz/glock/test_coverage)
 
 Small go library for mocking parts of the [time package](https://golang.org/pkg/time/).
 
@@ -13,7 +13,7 @@ The package contains a `Clock` and `Ticker` interface which wrap the `time.Now`,
 adnd `time.Sleep` functions and the `Ticker` struct, respectively.
 
 A *real* clock can be created for general (non-test) use. This implementation simply falls back
-to the functions provided in the time package. 
+to the functions provided in the time package.
 
 ```go
 clock := glock.NewRealClock()
