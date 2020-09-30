@@ -10,7 +10,7 @@ Small go library for mocking parts of the [time package](https://golang.org/pkg/
 ## Example
 
 The package contains a `Clock` and `Ticker` interface which wrap the `time.Now`, `time.After`,
-adnd `time.Sleep` functions and the `Ticker` struct, respectively.
+and `time.Sleep` functions and the `Ticker` struct, respectively.
 
 A *real* clock can be created for general (non-test) use. This implementation simply falls back
 to the functions provided in the time package.
