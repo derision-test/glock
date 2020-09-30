@@ -67,7 +67,7 @@ clock.Advance(time.Second * 30) // Fires ch
 
 ## License
 
-Copyright (c) 2017 Eric Fritz
+Copyright (c) 20202 Eric Fritz
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
