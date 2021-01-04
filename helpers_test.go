@@ -59,3 +59,25 @@ func chanDoesNotReceive(ch <-chan time.Time) func() bool {
 		}
 	}
 }
+
+func structChanReceives(ch <-chan struct{}) func() bool {
+	return func() bool {
+		select {
+		case <-ch:
+			return true
+		default:
+			return false
+		}
+	}
+}
+
+func structChanDoesNotReceive(ch <-chan struct{}) func() bool {
+	return func() bool {
+		select {
+		case <-ch:
+			return false
+		default:
+			return true
+		}
+	}
+}

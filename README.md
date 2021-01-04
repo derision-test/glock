@@ -5,15 +5,13 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/45c92a2ed058b29a2afc/maintainability)](https://codeclimate.com/github/efritz/glock/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/45c92a2ed058b29a2afc/test_coverage)](https://codeclimate.com/github/efritz/glock/test_coverage)
 
-Small go library for mocking parts of the [time package](https://golang.org/pkg/time/).
+Small go library for mocking parts of the [time](https://golang.org/pkg/time) and [context](https://golang.org/pkg/context) packages.
 
-## Example
+## Time utilities
 
-The package contains a `Clock` and `Ticker` interface which wrap the `time.Now`, `time.After`,
-and `time.Sleep` functions and the `Ticker` struct, respectively.
+The package contains a `Clock` and `Ticker` interface that wrap the `time.Now`, `time.After`, and `time.Sleep` functions and the `Ticker` struct, respectively.
 
-A *real* clock can be created for general (non-test) use. This implementation simply falls back
-to the functions provided in the time package.
+A *real* clock can be created for general (non-test) use. This implementation simply falls back to the functions provided in the time package.
 
 ```go
 clock := glock.NewRealClock()
@@ -25,9 +23,7 @@ t.Chan()                          // returns ticker's C field
 t.Stop()                          // stops the ticker
 ```
 
-In order to make unit tests that depend on time deterministic (and free of sleep calls), a *mock*
-clock can be used in place of the real clock. The mock clock allows you to control the current
-time with `SetCurrent` and `Advance` methods.
+In order to make unit tests that depend on time deterministic (and free of sleep calls), a *mock* clock can be used in place of the real clock. The mock clock allows you to control the current time with `SetCurrent` and `Advance` methods.
 
 ```go
 clock := glock.NewMockClock()
@@ -40,8 +36,7 @@ clock.Advance(time.Day)
 clock.Now() // returns Feb 13, 1989
 ```
 
-The `Advance` method will also trigger a value on the channels created by the `After` and
-`Ticker` functions.
+The `Advance` method will also trigger a value on the channels created by the `After` and `Ticker` functions.
 
 ```go
 clock := glock.NewMockClockAt(time.Unix(603288000, 0))
@@ -63,6 +58,35 @@ clock.Advance(time.Second * 30)
 clock.Advance(time.Second * 30) // Fires ch
 clock.Advance(time.Second * 30)
 clock.Advance(time.Second * 30) // Fires ch
+```
+
+## Context utilities
+
+The package also contains the functions `ContextWithDeadline` and `ContextWithTimeout` that mimmic the `context.WithDeadline` and `context.WithTimeout` functions, but will use a user-provided `Clock` instance rather than the standard `time.After` function.
+
+A *real* clock can be used for non-test scenarios without much additional overhead.
+
+```go
+clock := glock.NewRealClock()
+ctx, cancel := glock.ContextWithTimeout(context.Background(), clock, time.Second)
+defer cancel()
+
+<-ctx.Done() // Waits 1s
+```
+
+In order to make unit tests that depend on context timeouts deterministic, a *mock* clock can be used in place of the real clock. The mock clock can be advanced in the same was a described in the previous section.
+
+```go
+clock := glock.NewMockClock()
+ctx, cancel := glock.ContextWithTimeout(context.Background(), clock, time.Second)
+defer cancel()
+
+go func() {
+    <-time.After(time.Millisecond * 250)
+    clock.BlockingAdvance(time.Second)
+}()
+
+<-ctx.Done() // Waits around 250ms
 ```
 
 ## License
