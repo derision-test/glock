@@ -85,7 +85,7 @@ func TestBlockingAdvance(t *testing.T) {
 
 	clock.After(time.Second)
 	assert.Equal(t, time.Unix(100, 0), clock.Now())
-	assertChanIsNotClosed(t, done)
+	consistentlyNot(t, chanClosed(done))
 
 	close(sync)
 	eventually(t, chanClosed(done))
