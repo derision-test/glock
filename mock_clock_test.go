@@ -29,6 +29,8 @@ func TestSetCurrent(t *testing.T) {
 }
 
 func TestAdvance(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(100, 0))
 	assert.Equal(t, time.Unix(100, 0), clock.Now())
@@ -39,6 +41,8 @@ func TestAdvance(t *testing.T) {
 }
 
 func TestAdvanceMultipleTriggers(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	results := make(chan time.Time)
 
@@ -70,6 +74,8 @@ func TestAdvanceMultipleTriggers(t *testing.T) {
 }
 
 func TestBlockingAdvance(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	sync := make(chan struct{})
 	done := make(chan time.Time)
@@ -93,6 +99,8 @@ func TestBlockingAdvance(t *testing.T) {
 }
 
 func TestGetAfterArgs(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 
 	clock.After(3 * time.Second)
@@ -113,6 +121,8 @@ func TestGetAfterArgs(t *testing.T) {
 }
 
 func TestAfter(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -134,6 +144,8 @@ func TestAfter(t *testing.T) {
 }
 
 func TestMultipleAfter(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -165,6 +177,8 @@ func TestMultipleAfter(t *testing.T) {
 }
 
 func TestAfterNotExact(t *testing.T) {
+	t.Parallel()
+
 	// Make sure triggers are still fired even if the
 	// time doesn't match up exactly with the trigger
 	clock := NewMockClock()
@@ -179,6 +193,8 @@ func TestAfterNotExact(t *testing.T) {
 }
 
 func TestAfterTriggersSorted(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -199,6 +215,8 @@ func TestAfterTriggersSorted(t *testing.T) {
 }
 
 func TestRemoveAfterTrigger(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -224,6 +242,8 @@ func TestRemoveAfterTrigger(t *testing.T) {
 }
 
 func TestBlockedOnAfter(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 
 	assert.Equal(t, 0, clock.BlockedOnAfter())
@@ -253,6 +273,8 @@ func TestBlockedOnAfter(t *testing.T) {
 }
 
 func TestSleep(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -281,6 +303,8 @@ func TestSleep(t *testing.T) {
 }
 
 func TestSince(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClockAt(time.Unix(10, 0))
 
 	assert.Equal(t, time.Duration(0), clock.Since(time.Unix(10, 0)))
@@ -289,6 +313,8 @@ func TestSince(t *testing.T) {
 }
 
 func TestUntil(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClockAt(time.Unix(10, 0))
 
 	assert.Equal(t, time.Duration(0), clock.Until(time.Unix(10, 0)))

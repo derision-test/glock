@@ -8,6 +8,8 @@ import (
 )
 
 func TestGetTickerArgs(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 
 	clock.NewTicker(3 * time.Second)
@@ -28,11 +30,15 @@ func TestGetTickerArgs(t *testing.T) {
 }
 
 func TestNewTickerNoDuration(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	assert.Panics(t, func() { clock.NewTicker(0) })
 }
 
 func TestTickerOnTime(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -88,6 +94,8 @@ func main() {
 }
 */
 func TestTickerOffset2Second(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -149,6 +157,8 @@ func main() {
 }
 */
 func TestTickerOffset3Second(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -184,6 +194,8 @@ func TestTickerOffset3Second(t *testing.T) {
 }
 
 func TestMultipleTickers(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
@@ -216,6 +228,8 @@ func TestMultipleTickers(t *testing.T) {
 }
 
 func TestTickerStopped(t *testing.T) {
+	t.Parallel()
+
 	clock := NewMockClock()
 	clock.SetCurrent(time.Unix(0, 0))
 
