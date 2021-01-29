@@ -8,11 +8,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestContextValues(t *testing.T) {
+	t.Run("value can be added to and retrieved from context", func(t *testing.T) {
+		t.Parallel()
+
+		clock := NewMockClock()
+
+		ctx := context.Background()
+		ctx = WithContext(ctx, clock)
+
+		ctxClock := FromContext(ctx)
+		assert.Same(t, clock, ctxClock)
+	})
+	t.Run("default to returning real clock", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := context.Background()
+
+		ctxClock := FromContext(ctx)
+		assert.NotNil(t, ctxClock)
+		assert.IsType(t, &realClock{}, ctxClock)
+	})
+}
+
 func TestContext(t *testing.T) {
+	t.Parallel()
+
 	testContextWithTimeout(t, func(state *contextTestState) {})
 }
 
 func TestContextCancelParent(t *testing.T) {
+	t.Parallel()
+
 	testContextWithTimeout(t, func(state *contextTestState) {
 		state.err1 = context.Canceled
 		state.err2 = context.Canceled
@@ -22,6 +49,8 @@ func TestContextCancelParent(t *testing.T) {
 }
 
 func TestContextCancel(t *testing.T) {
+	t.Parallel()
+
 	testContextWithTimeout(t, func(state *contextTestState) {
 		state.err2 = context.Canceled
 		state.err3 = context.Canceled
@@ -30,6 +59,8 @@ func TestContextCancel(t *testing.T) {
 }
 
 func TestContextCancelChild(t *testing.T) {
+	t.Parallel()
+
 	testContextWithTimeout(t, func(state *contextTestState) {
 		state.err3 = context.Canceled
 		state.cancel3()
@@ -37,6 +68,8 @@ func TestContextCancelChild(t *testing.T) {
 }
 
 func TestContextDeadline(t *testing.T) {
+	t.Parallel()
+
 	testContextWithTimeout(t, func(state *contextTestState) {
 		state.err2 = context.DeadlineExceeded
 		state.err3 = context.DeadlineExceeded

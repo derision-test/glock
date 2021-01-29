@@ -6,6 +6,27 @@ import (
 	"time"
 )
 
+type ctxKey struct{}
+
+var glockCtxKey = &ctxKey{}
+
+// WithContext returns a context derived from the provided context with
+// the provided Clock as a value.
+func WithContext(ctx context.Context, clock Clock) context.Context {
+	return context.WithValue(ctx, glockCtxKey, clock)
+}
+
+// FromContext retrieves the Clock value from the provided context. If a Clock
+// is not set on the context a new real clock will be returned.
+func FromContext(ctx context.Context) Clock {
+	clock, ok := ctx.Value(glockCtxKey).(Clock)
+	if !ok {
+		clock = NewRealClock()
+	}
+
+	return clock
+}
+
 type glockAwareContext struct {
 	context.Context
 	mu   sync.Mutex

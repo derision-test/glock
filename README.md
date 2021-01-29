@@ -7,7 +7,7 @@
 
 Small go library for mocking parts of the [time](https://golang.org/pkg/time) and [context](https://golang.org/pkg/context) packages.
 
-## Time utilities
+## Time Utilities
 
 The package contains a `Clock` and `Ticker` interface that wrap the `time.Now`, `time.After`, and `time.Sleep` functions and the `Ticker` struct, respectively.
 
@@ -60,9 +60,47 @@ clock.Advance(time.Second * 30)
 clock.Advance(time.Second * 30) // Fires ch
 ```
 
-## Context utilities
+## Context Utilities
 
-The package also contains the functions `ContextWithDeadline` and `ContextWithTimeout` that mimmic the `context.WithDeadline` and `context.WithTimeout` functions, but will use a user-provided `Clock` instance rather than the standard `time.After` function.
+If you'd like to use a `context.Context` as a way to make a glock `Clock` available, this
+package provides `WithContext` and `FromContext` utility methods.
+
+To add a `Clock` to a context you would call `WithContext` and provide a parent context as well
+as the `Clock` you'd like to add.
+
+```go
+clock := glock.NewMockClock()
+
+ctx := context.Background()
+ctx = glock.WithContext(ctx, clock)
+```
+
+To retrieve the `Clock` from a context, the `FromContext` method is available. If a `Clock`
+does not already exist within the context `FromContext` will return a new *real* clock instance.
+
+```go
+// Retrieve a mock clock from the context
+clock := glock.NewMockClock()
+
+ctx := context.Background()
+ctx = glock.WithContext(ctx, clock)
+
+ctxClock := glock.FromContext(ctx)
+```
+
+```go
+// Retrieve a default real clock from the context
+ctx := context.Background()
+ctx = glock.WithContext(ctx, clock)
+
+ctxClock := glock.FromContext(ctx)
+```
+
+## Context Testing Utilities
+
+The package also contains the functions `ContextWithDeadline` and `ContextWithTimeout` that
+mimic the `context.WithDeadline` and `context.WithTimeout` functions, but will use a
+user-provided `Clock` instance rather than the standard `time.After` function.
 
 A *real* clock can be used for non-test scenarios without much additional overhead.
 
@@ -74,7 +112,9 @@ defer cancel()
 <-ctx.Done() // Waits 1s
 ```
 
-In order to make unit tests that depend on context timeouts deterministic, a *mock* clock can be used in place of the real clock. The mock clock can be advanced in the same was a described in the previous section.
+In order to make unit tests that depend on context timeouts deterministic, a *mock* clock can
+be used in place of the real clock. The mock clock can be advanced in the same was a described
+in the previous section.
 
 ```go
 clock := glock.NewMockClock()
@@ -91,7 +131,7 @@ go func() {
 
 ## License
 
-Copyright (c) 20202 Eric Fritz
+Copyright (c) 2021 Eric Fritz
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
