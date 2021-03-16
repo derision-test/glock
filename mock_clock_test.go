@@ -13,13 +13,13 @@ func TestNewMockClock(t *testing.T) {
 	// instead of an exact time
 	clock := NewMockClock()
 
-	since := time.Since(clock.fakeTime)
+	since := time.Since(clock.Now())
 	assert.Condition(t, func() bool { return since < 100*time.Millisecond })
 }
 
 func TestNow(t *testing.T) {
 	clock := NewMockClock()
-	assert.Equal(t, clock.fakeTime, clock.Now())
+	assert.Equal(t, clock.Now(), clock.Now())
 }
 
 func TestSetCurrent(t *testing.T) {
@@ -190,55 +190,6 @@ func TestAfterNotExact(t *testing.T) {
 	clock.Advance(3 * time.Second)
 	eventually(t, chanReceives(a1, time.Unix(1, 0)))
 	eventually(t, chanReceives(a2, time.Unix(2, 0)))
-}
-
-func TestAfterTriggersSorted(t *testing.T) {
-	t.Parallel()
-
-	clock := NewMockClock()
-	clock.SetCurrent(time.Unix(0, 0))
-
-	clock.After(3 * time.Second)
-	assert.Len(t, clock.triggers, 1)
-	assert.Equal(t, time.Unix(3, 0), clock.triggers[0].trigger)
-
-	clock.After(1 * time.Second)
-	assert.Len(t, clock.triggers, 2)
-	assert.Equal(t, time.Unix(1, 0), clock.triggers[0].trigger)
-	assert.Equal(t, time.Unix(3, 0), clock.triggers[1].trigger)
-
-	clock.After(2 * time.Second)
-	assert.Len(t, clock.triggers, 3)
-	assert.Equal(t, time.Unix(1, 0), clock.triggers[0].trigger)
-	assert.Equal(t, time.Unix(2, 0), clock.triggers[1].trigger)
-	assert.Equal(t, time.Unix(3, 0), clock.triggers[2].trigger)
-}
-
-func TestRemoveAfterTrigger(t *testing.T) {
-	t.Parallel()
-
-	clock := NewMockClock()
-	clock.SetCurrent(time.Unix(0, 0))
-
-	clock.After(1 * time.Second)
-	clock.After(2 * time.Second)
-	clock.After(3 * time.Second)
-	assert.Len(t, clock.triggers, 3)
-	assert.Equal(t, time.Unix(1, 0), clock.triggers[0].trigger)
-	assert.Equal(t, time.Unix(2, 0), clock.triggers[1].trigger)
-	assert.Equal(t, time.Unix(3, 0), clock.triggers[2].trigger)
-
-	clock.Advance(1 * time.Second)
-	assert.Len(t, clock.triggers, 2)
-	assert.Equal(t, time.Unix(2, 0), clock.triggers[0].trigger)
-	assert.Equal(t, time.Unix(3, 0), clock.triggers[1].trigger)
-
-	clock.Advance(1 * time.Second)
-	assert.Len(t, clock.triggers, 1)
-	assert.Equal(t, time.Unix(3, 0), clock.triggers[0].trigger)
-
-	clock.Advance(1 * time.Second)
-	assert.Len(t, clock.triggers, 0)
 }
 
 func TestBlockedOnAfter(t *testing.T) {
