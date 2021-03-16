@@ -33,6 +33,10 @@ func (c *realClock) Until(t time.Time) time.Duration {
 }
 
 func (c *realClock) NewTicker(duration time.Duration) Ticker {
+	return NewRealTicker(duration)
+}
+
+func NewRealTicker(duration time.Duration) Ticker {
 	return &realTicker{
 		ticker: time.NewTicker(duration),
 	}
