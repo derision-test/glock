@@ -36,7 +36,7 @@ clock.Advance(time.Day)
 clock.Now() // returns Feb 13, 1989
 ```
 
-The `Advance` method will also trigger a value on the channels created by the `After` and `Ticker` functions.
+The `Advance` method will also trigger a value on the channels created by the `After` and `Ticker` functions, if enough virtual time has elapsed for the events to fire.
 
 ```go
 clock := glock.NewMockClockAt(time.Unix(603288000, 0))
@@ -51,13 +51,58 @@ clock.Advance(time.Second * 30) // Fires c1
 
 ```go
 clock := glock.NewMockClock()
-ticker := clock.NewTicker(time.Minute)
 
-ch := ticker.Chan()
+ticker := clock.NewTicker(time.Minute)
+defer ticker.Stop()
+
+go func() {
+    for range ticker.Chan() {
+        // ...
+    }
+}()
+
 clock.Advance(time.Second * 30)
 clock.Advance(time.Second * 30) // Fires ch
 clock.Advance(time.Second * 30)
 clock.Advance(time.Second * 30) // Fires ch
+```
+
+The `Advance` method will send a value to any current listener registered to a channel on the clock. Timing these calls in relation with the clock consumer is not always an easy task. A variation of the advance method, `BlockingAdvance` can be used in its place when you want to first ensure that there is a listener on a channel returned by `After`.
+
+
+```go
+clock := glock.NewMockClock()
+
+go func() {
+    <-clock.After(time.Second * 30)
+}()
+
+clock.BlockingAdvance(time.Second * 30) // blocks until the concurrent call to After
+clock.BlockingAdvance(time.Second * 30) // blocks indefinitely as there are no listeners
+```
+
+Ticker instances themselves have the same time advancing mechanisms. Using `Advance` on a ticker (or using `Advance` on the clock from which a ticker was created) will cause the ticker to fire _once_ and then forward itself to the current time. This mimics the behavior of the Go runtime clock (see the test functions `^TestTickerOffset`).
+
+Where the `Advance` method sends the ticker's time to the consumer in a background goroutine, the `BlockingAdvance` variant will send the value in the caller's goroutine.
+
+```go
+ticker := clock.NewMockTicker(time.Second * 30)
+defer ticker.Stop()
+
+go func() {
+    <-ticker.Chan()
+    <-ticker.Chan()
+    <-ticker.Chan()
+}()
+
+ticker.BlockingAdvance(time.Second * 15)
+ticker.BlockingAdvance(time.Second * 15) // Fires ch
+ticker.BlockingAdvance(time.Second * 15)
+ticker.BlockingAdvance(time.Second * 15) // Fires ch
+ticker.BlockingAdvance(time.Second * 60) // Fires ch _once_
+
+ticker.Advance(time.Second * 30)         // does not block; sent asynchronously
+ticker.BlockingAdvance(time.Second * 30) // blocks indefinitely as there are no listeners
 ```
 
 ## Context Utilities
