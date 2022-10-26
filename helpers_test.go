@@ -27,7 +27,7 @@ func consistentlyNot(t *testing.T, cond func() bool) bool {
 	return consistently(t, func() bool { return !cond() })
 }
 
-func chanClosed(ch <-chan time.Time) func() bool {
+func chanClosed[T any](ch <-chan T) func() bool {
 	return func() bool {
 		select {
 		case _, ok := <-ch:
