@@ -223,8 +223,10 @@ func TestMultipleTickers(t *testing.T) {
 	consistently(t, chanDoesNotReceive(t3.Chan()))
 
 	clock.Advance(1 * time.Second)
-	eventually(t, chanReceives(t2.Chan(), time.Unix(6, 0)))
-	eventually(t, chanReceives(t3.Chan(), time.Unix(6, 0)))
+	allEventually(t,
+		chanReceives(t2.Chan(), time.Unix(6, 0)),
+		chanReceives(t3.Chan(), time.Unix(6, 0)),
+	)
 }
 
 func TestTickerStopped(t *testing.T) {

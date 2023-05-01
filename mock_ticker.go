@@ -1,6 +1,8 @@
 package glock
 
-import "time"
+import (
+	"time"
+)
 
 // MockTicker is an implementation of Ticker that can be moved forward in time
 // in increments for testing code that relies on timeouts or other time-sensitive
