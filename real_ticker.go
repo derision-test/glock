@@ -8,6 +8,12 @@ type realTicker struct {
 
 var _ Ticker = &realTicker{}
 
+func NewRealTicker(duration time.Duration) Ticker {
+	return &realTicker{
+		ticker: time.NewTicker(duration),
+	}
+}
+
 func (t *realTicker) Chan() <-chan time.Time {
 	return t.ticker.C
 }

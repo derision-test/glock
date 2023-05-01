@@ -36,8 +36,10 @@ func (c *realClock) NewTicker(duration time.Duration) Ticker {
 	return NewRealTicker(duration)
 }
 
-func NewRealTicker(duration time.Duration) Ticker {
-	return &realTicker{
-		ticker: time.NewTicker(duration),
-	}
+func (c *realClock) NewTimer(duration time.Duration) Timer {
+	return NewRealTimer(duration)
+}
+
+func (c *realClock) AfterFunc(duration time.Duration, f func()) Timer {
+	return newRealTimer(time.AfterFunc(duration, f))
 }
