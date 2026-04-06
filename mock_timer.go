@@ -55,12 +55,14 @@ func newMockTimerAt(
 		panic("duration cannot be 0")
 	}
 
+	advanceable.m.Lock()
 	t := &MockTimer{
 		advanceable: advanceable,
 		deadline:    advanceable.now.Add(duration),
 		ch:          make(chan time.Time),
 		f:           f,
 	}
+	advanceable.m.Unlock()
 
 	go t.process()
 	advanceable.register(t)
