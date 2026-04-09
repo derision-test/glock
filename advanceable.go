@@ -75,9 +75,6 @@ func (a *advanceable) setCurrent(now time.Time) {
 
 // register marks a subscriber to be updated when the current time changes.
 func (a *advanceable) register(subscriber subscriber) {
-	a.m.Lock()
 	a.subscribers = append(a.subscribers, subscriber)
-	a.m.Unlock()
-
 	a.cond.Broadcast()
 }
