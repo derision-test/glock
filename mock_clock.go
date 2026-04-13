@@ -44,8 +44,9 @@ func (c *MockClock) Now() time.Time {
 // clock's internal time is at or past the supplied duration.
 func (c *MockClock) After(duration time.Duration) <-chan time.Time {
 	c.m.Lock()
+	defer c.m.Unlock()
+
 	c.afterArgs = append(c.afterArgs, duration)
-	c.m.Unlock()
 
 	if duration <= 0 {
 		return closedChan
