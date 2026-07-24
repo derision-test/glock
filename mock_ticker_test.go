@@ -1,6 +1,7 @@
 package glock
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -248,4 +249,44 @@ func TestTickerStopped(t *testing.T) {
 	consistently(t, chanDoesNotReceive(ticker.Chan()))
 	clock.Advance(2 * time.Second)
 	consistently(t, chanDoesNotReceive(ticker.Chan()))
+}
+
+// TestMockTickerConcurrentStopDuringFire is a regression test for a deadlock
+// where a firing ticker sent on its channel while holding the internal mutex, so
+// a concurrent Stop() (which needs that mutex) could block forever. If the
+// deadlock regresses this test hangs and fails via the package test timeout.
+func TestMockTickerConcurrentStopDuringFire(t *testing.T) {
+	t.Parallel()
+
+	const interval = time.Second
+	for iter := 0; iter < 3000; iter++ {
+		clock := NewMockClock()
+		ticker := clock.NewTicker(interval)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		drained := make(chan struct{})
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ticker.Chan():
+				case <-drained:
+					return
+				}
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 20; i++ {
+				clock.Advance(interval)
+			}
+			ticker.Stop()
+			close(drained)
+		}()
+
+		wg.Wait()
+	}
 }

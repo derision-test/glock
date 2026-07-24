@@ -73,8 +73,20 @@ func (a *advanceable) setCurrent(now time.Time) {
 	a.cond.Broadcast()
 }
 
-// register marks a subscriber to be updated when the current time changes.
+// register marks a subscriber to be updated when the current time changes. It
+// acquires the shared mutex, so callers must NOT already hold it; callers that
+// hold the lock (e.g. MockTimer.Reset) must use registerLocked instead.
 func (a *advanceable) register(subscriber subscriber) {
+	a.m.Lock()
+	defer a.m.Unlock()
+
+	a.registerLocked(subscriber)
+}
+
+// registerLocked is register for callers that already hold the shared mutex. It
+// mutates the subscriber list (also touched by setCurrent under the same lock),
+// so the lock must be held.
+func (a *advanceable) registerLocked(subscriber subscriber) {
 	a.subscribers = append(a.subscribers, subscriber)
 	a.cond.Broadcast()
 }
