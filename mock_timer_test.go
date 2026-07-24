@@ -1,6 +1,7 @@
 package glock
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -331,4 +332,55 @@ func TestMockTimer(t *testing.T) {
 			eventually(t, chanReceives(timer.Chan(), time.Unix(2, 0)))
 		})
 	})
+}
+
+// TestMockTimerConcurrentStopDuringFire is a regression test for a deadlock
+// where a firing timer sent on its channel while holding the internal mutex, so
+// a concurrent Stop() (which needs that mutex) could block forever. The pattern
+// mirrors a consumer that calls Stop()/drain/Reset on each iteration while the
+// timer is being advanced past its deadline. If the deadlock regresses this test
+// hangs and fails via the package test timeout.
+func TestMockTimerConcurrentStopDuringFire(t *testing.T) {
+	t.Parallel()
+
+	const interval = time.Second
+	for iter := 0; iter < 2000; iter++ {
+		clock := NewMockClock()
+		timer := clock.NewTimer(interval)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		stop := make(chan struct{})
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				case <-timer.Chan():
+					timer.Reset(interval)
+				default:
+					if !timer.Stop() {
+						select {
+						case <-timer.Chan():
+						default:
+						}
+					}
+					timer.Reset(interval)
+				}
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 50; i++ {
+				clock.Advance(interval)
+			}
+			close(stop)
+		}()
+
+		wg.Wait()
+		timer.Stop()
+	}
 }

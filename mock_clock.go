@@ -54,7 +54,9 @@ func (c *MockClock) After(duration time.Duration) <-chan time.Time {
 
 	ch := make(chan time.Time, 1)
 	deadline := c.now.Add(duration)
-	c.register(&afterSubscriber{ch: ch, deadline: deadline})
+	// Already holding the mutex here; use the locked variant to avoid a
+	// self-deadlock on the non-reentrant mutex.
+	c.registerLocked(&afterSubscriber{ch: ch, deadline: deadline})
 	return ch
 }
 
